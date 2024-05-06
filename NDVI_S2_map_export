@@ -1,0 +1,87 @@
+// Access the geometry called "Poligono" from the "Geometry Imports" by index
+var roiGeometry1 = Map.drawingTools().layers().get(0).toGeometry();
+var roiGeometry2 = Map.drawingTools().layers().get(1).toGeometry();
+
+// Filter Sentinel-2 imagery with cloud cover less than or equal to 30%
+var sentinel2Collection = ee.ImageCollection('COPERNICUS/S2_SR')
+  .filterBounds(roiGeometry1)
+  .filterMetadata('CLOUD_COVERAGE_ASSESSMENT', 'less_than', 30);
+
+// Function to calculate NDVI
+function calculateNDVI(image) {
+  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');
+  return image.addBands(ndvi);
+}
+
+// Apply the NDVI calculation to the image collection
+var sentinel2NDVI = sentinel2Collection.map(calculateNDVI);
+
+// Filter the image collection to get the image corresponding to '2023-12-14'
+var ndviImage1 = sentinel2NDVI
+  .filterDate('2023-12-14', '2023-12-15')
+  .first();
+
+// Clip the NDVI image to the boundaries of "geometry2"
+var clippedNDVI1 = ndviImage1.clip(roiGeometry2);
+
+// Add the NDVI image to the map
+Map.addLayer(clippedNDVI1.select('NDVI'), {
+  min: 0,
+  max: 1,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901', '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01', '012E01', '011D01', '011301']
+}, 'NDVI Image - 2023-12-14 Clipped');
+
+// Export the clipped NDVI image to Google Drive for 2023-12-14
+Export.image.toDrive({
+  image: clippedNDVI1.select('NDVI'),
+  description: 'NDVI_Map_2023-12-14_Clipped_10mres',
+  folder: 'EARTH_ENGINE_exports',
+  scale: 10
+});
+
+// Filter the image collection to get the image corresponding to '2023-12-09'
+var ndviImage2 = sentinel2NDVI
+  .filterDate('2023-12-09', '2023-12-10')
+  .first();
+
+// Clip the NDVI image to the boundaries of "geometry2"
+var clippedNDVI2 = ndviImage2.clip(roiGeometry2);
+
+// Add the NDVI image to the map
+Map.addLayer(clippedNDVI2.select('NDVI'), {
+  min: 0,
+  max: 1,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901', '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01', '012E01', '011D01', '011301']
+}, 'NDVI Image - 2023-12-09 Clipped');
+
+// Export the clipped NDVI image to Google Drive for 2023-12-09
+Export.image.toDrive({
+  image: clippedNDVI2.select('NDVI'),
+  description: 'NDVI_Map_2023-12-09_Clipped_10mres',
+  folder: 'EARTH_ENGINE_exports',
+  scale: 10
+});
+
+// Filter ALOS PALSAR RTC 12.5m DEM dataset
+var alosPalsarDem = ee.Image('JAXA/ALOS/AW3D30_V1_1').select('AVE');
+
+// Clip the DEM to the boundaries of "geometry2"
+var clippedDem = alosPalsarDem.clip(roiGeometry2);
+
+// Reproject the DEM to UTM Zone 19 South
+var reprojectedDem = clippedDem.reproject('EPSG:32719', null, 12.5);
+
+// Add the DEM layer to the map with a different color palette
+Map.addLayer(reprojectedDem, {
+  min: 0,
+  max: 3000, // Adjust the max value according to the range of your DEM
+  palette: ['006400', '7FFF00', 'ADFF2F', '7FFFD4', '00FFFF', '0000FF', '8A2BE2']
+}, 'ALOS PALSAR RTC DEM - Clipped');
+
+// Export the clipped DEM to Google Drive
+Export.image.toDrive({
+  image: reprojectedDem,
+  description: 'ALOS_PALSAR_RTC_DEM_UTM19S',
+  folder: 'EARTH_ENGINE_exports',
+  scale: 12.5 // The resolution of the ALOS PALSAR RTC DEM is already 12.5 meters
+});
